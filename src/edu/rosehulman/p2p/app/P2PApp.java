@@ -27,11 +27,14 @@ package edu.rosehulman.p2p.app;
 import edu.rosehulman.p2p.impl.ConnectionMonitor;
 import edu.rosehulman.p2p.impl.P2PMediator;
 import edu.rosehulman.p2p.impl.Protocol;
+import edu.rosehulman.p2p.impl.handlers.FindRequestHandler;
+import edu.rosehulman.p2p.impl.handlers.FoundRequestHandler;
 import edu.rosehulman.p2p.impl.handlers.GetRequestHandler;
 import edu.rosehulman.p2p.impl.handlers.ListRequestHandler;
 import edu.rosehulman.p2p.impl.handlers.ListingRequestHandler;
 import edu.rosehulman.p2p.impl.handlers.PutRequestHandler;
 import edu.rosehulman.p2p.impl.handlers.PutResponseHandler;
+import edu.rosehulman.p2p.impl.handlers.SearchedRequestHandler;
 import edu.rosehulman.p2p.protocol.IP2PMediator;
 import edu.rosehulman.p2p.protocol.IProtocol;
 
@@ -53,12 +56,16 @@ public class P2PApp {
 
 		protocol.setRequestHandler(IProtocol.LIST, new ListRequestHandler(mediator));
 		protocol.setRequestHandler(IProtocol.LISTING, new ListingRequestHandler(mediator));
+		protocol.setRequestHandler(IProtocol.FIND, new FindRequestHandler(mediator));
+		protocol.setRequestHandler(IProtocol.SEARCHED, new SearchedRequestHandler(mediator));
+		protocol.setRequestHandler(IProtocol.FOUND, new FoundRequestHandler(mediator));
 		
-		// Let's start a connection monitor that listens for incoming connection request
+		// Let's start a connection monitor that listens for incoming connection
+		// request
 		ConnectionMonitor connectionMonitor = new ConnectionMonitor(mediator);
 		Thread runner = new Thread(connectionMonitor);
 		runner.start();
-		
+
 		// Configure the GUI to receive event notification
 		P2PGUI gui = new P2PGUI(mediator, connectionMonitor);
 		mediator.addActivityListener(gui);

@@ -55,10 +55,12 @@ import edu.rosehulman.p2p.protocol.IStreamMonitor;
 import edu.rosehulman.p2p.protocol.P2PException;
 
 public class P2PMediator implements IP2PMediator {
+	private static final int PROGRESS_COMPLETE = 100;
+
 	Host localhost;
 	Map<IHost, IStreamMonitor> hostToInStreamMonitor;
 	Map<Integer, IPacket> requestLog;
-	Map<Integer, FileSearch> activeSearches;
+	Map<String, FileSearch> activeSearches;
 	String rootDirectory;
 
 	List<IDownloadListener> downloadListeners;
@@ -84,7 +86,7 @@ public class P2PMediator implements IP2PMediator {
 				.synchronizedMap(new HashMap<Integer, IPacket>());
 
 		this.activeSearches = Collections
-				.synchronizedMap(new HashMap<Integer, FileSearch>());
+				.synchronizedMap(new HashMap<String, FileSearch>());
 
 		this.downloadListeners = Collections
 				.synchronizedList(new ArrayList<IDownloadListener>());
@@ -353,8 +355,12 @@ public class P2PMediator implements IP2PMediator {
 	}
 
 	@Override
-	public void find(String searchTerm, int depth) throws P2PException {
+	public void find(String searchTerm, boolean exactMatch, int depth) throws P2PException {
+		// TODO Search locally maybe?
 
+		int seqNum = newSequenceNumber();
+		forwardFileSearch(searchTerm, exactMatch, getLocalHost(), getLocalHost(),
+				depth, seqNum);
 	}
 
 	@Override
@@ -366,10 +372,8 @@ public class P2PMediator implements IP2PMediator {
 		File[] satisfyingFiles = rootDir.listFiles(new FilenameFilter() {
 			@Override
 			public boolean accept(File dir, String name) {
-				return dir.isFile()
-						&& (mustMatch ? name.equalsIgnoreCase(searchTerm)
-								: name.toLowerCase().contains(
-										searchTerm.toLowerCase()));
+				return (mustMatch ? name.equalsIgnoreCase(searchTerm) : name
+						.toLowerCase().contains(searchTerm.toLowerCase()));
 			}
 		});
 
@@ -417,14 +421,15 @@ public class P2PMediator implements IP2PMediator {
 			IHost searcher, IHost sender, int depth, int seqNum)
 			throws P2PException {
 
-		if (hostToInStreamMonitor.size() <= 1) {
+		if (hostToInStreamMonitor.size() == 0) {
 			// 1 host implies we can only send to the host that would've sent
 			// the search
-			requestSearched(sender, seqNum);
+			requestSearched(sender, searcher, seqNum);
+			return;
 		}
 
 		synchronized (activeSearches) {
-			if (activeSearches.containsKey(seqNum)) {
+			if (getActiveSearch(seqNum, searcher) != null) {
 				return; // We're already doing this search
 			}
 
@@ -434,7 +439,7 @@ public class P2PMediator implements IP2PMediator {
 			search.LastHopSender = sender;
 			search.Searcher = searcher;
 
-			activeSearches.put(seqNum, search);
+			saveActiveSearch(seqNum, searcher, search);
 		}
 
 		IPacket findRequest = new Packet(IProtocol.PROTOCOL, IProtocol.FIND,
@@ -459,21 +464,28 @@ public class P2PMediator implements IP2PMediator {
 		excludedHosts.add(searcher);
 		excludedHosts.add(sender);
 
-		broadcast(findRequest, excludedHosts);
+		if (broadcast(findRequest, excludedHosts) == 0) {
+			requestSearched(sender, searcher, seqNum);
+		}
 	}
 
 	@Override
-	public void requestSearched(IHost sender, int seqNum) throws P2PException {
+	public void requestSearched(IHost sender, IHost searcher, int seqNum)
+			throws P2PException {
 		IPacket searchComplete = new Packet(IProtocol.PROTOCOL,
 				IProtocol.SEARCHED, sender.toString());
 		searchComplete.setHeader(IProtocol.HOST,
 				this.localhost.getHostAddress());
 		searchComplete.setHeader(IProtocol.PORT, this.localhost.getPort() + "");
+		searchComplete.setHeader(IProtocol.SEARCHER_HOST,
+				searcher.getHostAddress());
+		searchComplete.setHeader(IProtocol.SEARCHER_PORT, searcher.getPort()
+				+ "");
 		searchComplete.setHeader(IProtocol.SEQ_NUM, seqNum + "");
 
 		IStreamMonitor monitor = hostToInStreamMonitor.get(sender);
 
-		FileSearch activeSearch = getActiveSearch(seqNum);
+		FileSearch activeSearch = getActiveSearch(seqNum, searcher);
 
 		if (activeSearch != null) {
 			synchronized (activeSearch) {
@@ -481,14 +493,31 @@ public class P2PMediator implements IP2PMediator {
 			}
 		}
 
-		if (activeSearch == null
-				|| activeSearch.RepliedCount == activeSearch.ForwardedCount) {
-			searchComplete.toStream(monitor.getOutputStream());
+		boolean searchFinished = activeSearch == null
+				|| activeSearch.RepliedCount == activeSearch.ForwardedCount;
+		boolean amSearcher = activeSearch == null
+				|| activeSearch.Searcher == getLocalHost();
+
+		if (amSearcher) {
+			if (activeSearch != null && activeSearch.ForwardedCount > 0) {
+				fireFoundProgress((int) Math
+						.round((activeSearch.RepliedCount / activeSearch.ForwardedCount) * 100));
+			} else {
+				fireFoundProgress(PROGRESS_COMPLETE);
+			}
 		}
 
+		if (searchFinished) {
+			completeSearch(seqNum, searcher);
+		}
+
+		if (searchFinished && monitor != null && !amSearcher) {
+			searchComplete.toStream(monitor.getOutputStream());
+		}
 	}
 
-	private void broadcast(IPacket packet, List<IHost> exclude) {
+	private int broadcast(IPacket packet, List<IHost> exclude) {
+		int peerCount = 0;
 		for (IHost peer : hostToInStreamMonitor.keySet()) {
 			if (exclude.contains(peer)) {
 				continue;
@@ -498,6 +527,7 @@ public class P2PMediator implements IP2PMediator {
 			OutputStream out = monitor.getOutputStream();
 			try {
 				packet.toStream(out);
+				peerCount++;
 			} catch (Exception e) {
 				System.out
 						.println("Error broadcasting packet to peers; will proceed.");
@@ -505,6 +535,7 @@ public class P2PMediator implements IP2PMediator {
 				continue;
 			}
 		}
+		return peerCount;
 	}
 
 	@Override
@@ -526,19 +557,24 @@ public class P2PMediator implements IP2PMediator {
 			this.fireRequestLogChanged();
 	}
 
-	@Override
-	public FileSearch getActiveSearch(int number) {
-		return activeSearches.get(number);
+	private String activeSearchKey(int number, IHost host) {
+		return String.format("%d:%s:%d", number, host.getHostAddress(),
+				host.getPort());
 	}
 
 	@Override
-	public void saveActiveSearch(int number, FileSearch search) {
-		activeSearches.put(number, search);
+	public FileSearch getActiveSearch(int number, IHost host) {
+		return activeSearches.get(activeSearchKey(number, host));
 	}
 
 	@Override
-	public void completeSearch(int number) {
-		activeSearches.remove(number);
+	public void saveActiveSearch(int number, IHost host, FileSearch search) {
+		activeSearches.put(activeSearchKey(number, host), search);
+	}
+
+	@Override
+	public void completeSearch(int number, IHost host) {
+		activeSearches.remove(activeSearchKey(number, host));
 	}
 
 	/************************** Listeners Related Code *********************************/

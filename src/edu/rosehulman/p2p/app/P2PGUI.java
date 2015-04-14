@@ -25,6 +25,9 @@
 package edu.rosehulman.p2p.app;
 
 import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -34,13 +37,16 @@ import java.util.Collection;
 import java.util.List;
 
 import javax.swing.BorderFactory;
+import javax.swing.BoxLayout;
 import javax.swing.DefaultListModel;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
@@ -59,6 +65,7 @@ import edu.rosehulman.p2p.protocol.IHost;
 import edu.rosehulman.p2p.protocol.IP2PMediator;
 import edu.rosehulman.p2p.protocol.IPacket;
 import edu.rosehulman.p2p.protocol.IProtocol;
+import edu.rosehulman.p2p.protocol.P2PException;
 
 /**
  * @author rupakhet
@@ -67,6 +74,8 @@ import edu.rosehulman.p2p.protocol.IProtocol;
 public class P2PGUI implements IActivityListener, IConnectionListener,
 		IDownloadListener, IListingListener, IRequestLogListener,
 		IFindListener, IFindProgressListener {
+	private static final int NETWORK_DEPTH = 3;
+
 	JFrame frame;
 	JPanel contentPane;
 
@@ -100,6 +109,8 @@ public class P2PGUI implements IActivityListener, IConnectionListener,
 	DefaultListModel<String> searchResultListModel;
 	JScrollPane searchResultScrollPane;
 	JButton downloadAfterSearch;
+	JProgressBar searchProgressBar;
+	JCheckBox searchExactMatch;
 
 	JPanel networkMapPanel;
 
@@ -351,7 +362,27 @@ public class P2PGUI implements IActivityListener, IConnectionListener,
 		this.searchTermField = new JTextField("");
 		this.searchTermField.setColumns(15);
 		this.searchButton = new JButton("Search Network");
+		this.searchButton.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				searchResultListModel.clear();
+				searchProgressBar.setValue(0);
+
+				String searchTerm = searchTermField.getText();
+				try {
+					mediator.find(searchTerm, searchExactMatch.isSelected(),
+							NETWORK_DEPTH);
+				} catch (P2PException p2pExcept) {
+					postStatus("ERROR searching for file - " + searchTerm);
+				}
+			}
+		});
+
+		this.searchExactMatch = new JCheckBox("Exact Match: ");
+		this.searchExactMatch.setSelected(true);
+
 		top.add(this.searchTermField);
+		top.add(this.searchExactMatch);
 		top.add(this.searchButton);
 
 		this.searchResultListModel = new DefaultListModel<>();
@@ -360,10 +391,65 @@ public class P2PGUI implements IActivityListener, IConnectionListener,
 
 		this.downloadAfterSearch = new JButton("Download the selected file");
 
+		this.downloadAfterSearch.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				String selectedFile = searchResultList.getSelectedValue();
+
+				if (selectedFile == null || selectedFile.isEmpty()) {
+					JOptionPane
+							.showMessageDialog(frame,
+									"Please select a file to download.",
+									"No File Selected",
+									JOptionPane.ERROR_MESSAGE);
+					return;
+				}
+
+				String[] split = selectedFile.split("@");
+				final String fileName = split[0].trim();
+				String[] hostString = split[1].trim().split(":");
+				String hostAddr = hostString[0];
+				int hostPort = Integer.parseInt(hostString[1]);
+
+				final IHost remoteHost = new Host(hostAddr, hostPort);
+
+				Runnable backgroundDownload = new Runnable() {
+					@Override
+					public void run() {
+						try {
+							mediator.requestGet(remoteHost, fileName);
+							postStatus("Getting file " + fileName + " from "
+									+ remoteHost + "...");
+						} catch (Exception e) {
+							postStatus("Error sending the get file request to "
+									+ remoteHost + "!");
+						}
+					}
+				};
+
+				Thread thread = new Thread(backgroundDownload);
+				thread.start();
+			}
+		});
+
+		this.searchProgressBar = new JProgressBar(0, 100);
+		this.searchProgressBar.setValue(0);
+
+		JPanel bottom = new JPanel();
+
+		bottom.setLayout(new GridBagLayout());
+		GridBagConstraints cons = new GridBagConstraints();
+		cons.fill = GridBagConstraints.HORIZONTAL;
+		cons.weightx = 1;
+		cons.gridx = 0;
+
+		bottom.add(this.searchProgressBar, cons);
+		bottom.add(this.downloadAfterSearch, cons);
+
 		this.searchFilePanel.add(top, BorderLayout.NORTH);
 		this.searchFilePanel.add(this.searchResultScrollPane,
 				BorderLayout.CENTER);
-		this.searchFilePanel.add(this.downloadAfterSearch, BorderLayout.SOUTH);
+		this.searchFilePanel.add(bottom, BorderLayout.SOUTH);
 	}
 
 	@Override
@@ -416,11 +502,17 @@ public class P2PGUI implements IActivityListener, IConnectionListener,
 		this.postStatus("FIND Partial Result: received files from "
 				+ host.getHostAddress());
 		this.postStatus("Files: " + fileNames);
+
+		for (String fName : fileNames) {
+			searchResultListModel.addElement(String.format("%s @ %s:%d", fName,
+					host.getHostAddress(), host.getPort()));
+		}
 	}
 
 	@Override
 	public void findProgressChanged(int progressPercent) {
-		// TODO Auto-generated method stub
-		
+		this.postStatus("FIND PROGRESS: " + progressPercent + "%");
+
+		this.searchProgressBar.setValue(progressPercent);
 	}
 }

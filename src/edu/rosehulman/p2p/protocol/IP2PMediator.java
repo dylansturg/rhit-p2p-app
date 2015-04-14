@@ -46,9 +46,9 @@ public interface IP2PMediator {
 	public void logRequest(int number, IPacket p);
 	public void completeRequest(int number);
 	
-	public FileSearch getActiveSearch(int number);
-	public void saveActiveSearch(int number, FileSearch search);
-	public void completeSearch(int number);
+	public FileSearch getActiveSearch(int number, IHost host);
+	public void saveActiveSearch(int number, IHost host, FileSearch search);
+	public void completeSearch(int number, IHost host);
 	
 	public boolean requestAttach(IHost host) throws P2PException;
 	public void requestAttachOK(IHost host, Socket socket, int seqNum) throws P2PException;
@@ -57,11 +57,11 @@ public interface IP2PMediator {
 	public void requestDetach(IHost host) throws P2PException;
 
 	public void discover(int depth) throws P2PException;
-	public void find(String searchTerm, int depth) throws P2PException;
+	public void find(String searchTerm, boolean exactMatch, int depth) throws P2PException;
 	
 	public void requestFileSearch(String searchTerm, boolean mustMatch, IHost respondTo, int sequence) throws P2PException;
 	public void forwardFileSearch(String searchTerm, boolean mustMatch, IHost searcher, IHost sender, int depth, int seqNum) throws P2PException;
-	public void requestSearched(IHost sender, int seqNum) throws P2PException;
+	public void requestSearched(IHost sender, IHost searcher, int seqNum) throws P2PException;
 	
 	public void requestList(IHost host) throws P2PException;	
 	public void requestListing(IHost remoteHost, int seqNum) throws P2PException;

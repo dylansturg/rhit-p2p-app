@@ -34,7 +34,7 @@ public class FindRequestHandler extends AbstractHandler implements
 
 			IHost searcher = new Host(searcherHost, searcherPort);
 			IHost sender = new Host(host, port);
-			
+
 			String match = packet.getHeader(IProtocol.MATCHES);
 			String contains = packet.getHeader(IProtocol.CONTAINS);
 
@@ -57,14 +57,17 @@ public class FindRequestHandler extends AbstractHandler implements
 			if (depth > 0) {
 				depth--;
 				mediator.logRequest(seqNum, packet);
-				mediator.forwardFileSearch(searchTerm, matches, searcher, sender, depth, seqNum);
+				mediator.forwardFileSearch(searchTerm, matches, searcher,
+						sender, depth, seqNum);
+			} else {
+				mediator.requestSearched(sender, searcher, seqNum);
 			}
 
 		} catch (Exception e) {
 			System.out.println("Should see what happened.");
 			System.out.println(e);
 			e.printStackTrace();
-			
+
 		}
 	}
 
