@@ -358,7 +358,7 @@ public class P2PMediator implements IP2PMediator {
 	public void find(String searchTerm, boolean exactMatch, int depth)
 			throws P2PException {
 		// TODO Search locally maybe?
-
+		
 		int seqNum = newSequenceNumber();
 		forwardFileSearch(searchTerm, exactMatch, getLocalHost(),
 				getLocalHost(), depth, seqNum);
@@ -431,12 +431,13 @@ public class P2PMediator implements IP2PMediator {
 			return;
 		}
 
+		FileSearch search;
 		synchronized (activeSearches) {
 			if (getActiveSearch(seqNum, searcher) != null) {
 				return; // We're already doing this search
 			}
 
-			FileSearch search = new FileSearch();
+			search = new FileSearch();
 			search.ForwardedCount = hostToInStreamMonitor.size();
 			search.RepliedCount = 0;
 			search.LastHopSender = sender;
@@ -467,7 +468,9 @@ public class P2PMediator implements IP2PMediator {
 		excludedHosts.add(searcher);
 		excludedHosts.add(sender);
 
-		if (broadcast(findRequest, excludedHosts) == 0) {
+		int forwardedCount = broadcast(findRequest, excludedHosts);
+		search.ForwardedCount = forwardedCount;
+		if (forwardedCount == 0) {
 			requestSearched(sender, searcher, seqNum);
 		}
 	}

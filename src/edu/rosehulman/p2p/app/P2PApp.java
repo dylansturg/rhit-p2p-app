@@ -43,8 +43,8 @@ import edu.rosehulman.p2p.protocol.IProtocol;
 public class P2PApp {
 	public static void main(String args[]) throws Exception {
 		// NOTE: Change me every time you run a new client locally
-		String rootDirectory = "first";
-		int port = 9004;
+		String rootDirectory = "third";
+		int port = 9003;
 
 		// Configure the main worker that mediates between peers
 		IP2PMediator mediator = new P2PMediator(port, rootDirectory);
