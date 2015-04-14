@@ -355,12 +355,13 @@ public class P2PMediator implements IP2PMediator {
 	}
 
 	@Override
-	public void find(String searchTerm, boolean exactMatch, int depth) throws P2PException {
+	public void find(String searchTerm, boolean exactMatch, int depth)
+			throws P2PException {
 		// TODO Search locally maybe?
 
 		int seqNum = newSequenceNumber();
-		forwardFileSearch(searchTerm, exactMatch, getLocalHost(), getLocalHost(),
-				depth, seqNum);
+		forwardFileSearch(searchTerm, exactMatch, getLocalHost(),
+				getLocalHost(), depth, seqNum);
 	}
 
 	@Override
@@ -405,6 +406,8 @@ public class P2PMediator implements IP2PMediator {
 					throw new P2PException(
 							"Failed to connect to the Searcher for a FOUND response.");
 				}
+				
+				monitor = hostToInStreamMonitor.get(respondTo);
 			}
 
 			OutputStream out = monitor.getOutputStream();

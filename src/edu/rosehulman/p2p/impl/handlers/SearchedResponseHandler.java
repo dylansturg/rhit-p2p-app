@@ -9,18 +9,17 @@ import edu.rosehulman.p2p.protocol.IProtocol;
 import edu.rosehulman.p2p.protocol.IResponseHandler;
 import edu.rosehulman.p2p.protocol.P2PException;
 
-public class FindResponseHandler extends AbstractHandler implements
+public class SearchedResponseHandler extends AbstractHandler implements
 		IResponseHandler {
 
-	public FindResponseHandler(IP2PMediator mediator) {
+	public SearchedResponseHandler(IP2PMediator mediator) {
 		super(mediator);
 	}
 
 	@Override
 	public void handle(IPacket packet, OutputStream out) throws P2PException {
 		int seqNum = Integer.parseInt(packet.getHeader(IProtocol.SEQ_NUM));
-		
-		mediator.logRequest(seqNum, packet);
+		mediator.completeRequest(seqNum);
 	}
 
 }
