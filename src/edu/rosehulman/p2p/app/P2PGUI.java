@@ -26,6 +26,7 @@ package edu.rosehulman.p2p.app;
 
 import java.awt.BorderLayout;
 import java.awt.Component;
+import java.awt.EventQueue;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
@@ -51,6 +52,8 @@ import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
+import javax.swing.SwingUtilities;
+import javax.swing.SwingWorker;
 
 import edu.rosehulman.p2p.impl.ConnectionMonitor;
 import edu.rosehulman.p2p.impl.Host;
@@ -397,11 +400,9 @@ public class P2PGUI implements IActivityListener, IConnectionListener,
 				String selectedFile = searchResultList.getSelectedValue();
 
 				if (selectedFile == null || selectedFile.isEmpty()) {
-					JOptionPane
-							.showMessageDialog(frame,
-									"Please select a file to download.",
-									"No File Selected",
-									JOptionPane.ERROR_MESSAGE);
+					JOptionPane.showMessageDialog(frame,
+							"Please select a file to download.",
+							"No File Selected", JOptionPane.ERROR_MESSAGE);
 					return;
 				}
 
@@ -498,21 +499,28 @@ public class P2PGUI implements IActivityListener, IConnectionListener,
 	}
 
 	@Override
-	public void filesFound(IHost host, List<String> fileNames) {
+	public void filesFound(final IHost host, final List<String> fileNames) {
 		this.postStatus("FIND Partial Result: received files from "
 				+ host.getHostAddress());
 		this.postStatus("Files: " + fileNames);
 
-		for (String fName : fileNames) {
-			searchResultListModel.addElement(String.format("%s @ %s:%d", fName,
-					host.getHostAddress(), host.getPort()));
-		}
+		EventQueue.invokeLater(new Runnable() {
+			@Override
+			public void run() {
+				for (String fName : fileNames) {
+					searchResultListModel.addElement(String.format(
+							"%s @ %s:%d", fName, host.getHostAddress(),
+							host.getPort()));
+				}
+			}
+		});
 	}
 
 	@Override
-	public void findProgressChanged(int progressPercent) {
+	public void findProgressChanged(final int progressPercent) {
 		this.postStatus("FIND PROGRESS: " + progressPercent + "%");
 
-		this.searchProgressBar.setValue(progressPercent);
+		searchProgressBar.setValue(progressPercent);
+		searchProgressBar.repaint();
 	}
 }

@@ -358,7 +358,7 @@ public class P2PMediator implements IP2PMediator {
 	public void find(String searchTerm, boolean exactMatch, int depth)
 			throws P2PException {
 		// TODO Search locally maybe?
-		
+
 		int seqNum = newSequenceNumber();
 		forwardFileSearch(searchTerm, exactMatch, getLocalHost(),
 				getLocalHost(), depth, seqNum);
@@ -406,7 +406,7 @@ public class P2PMediator implements IP2PMediator {
 					throw new P2PException(
 							"Failed to connect to the Searcher for a FOUND response.");
 				}
-				
+
 				monitor = hostToInStreamMonitor.get(respondTo);
 			}
 
@@ -434,6 +434,11 @@ public class P2PMediator implements IP2PMediator {
 		FileSearch search;
 		synchronized (activeSearches) {
 			if (getActiveSearch(seqNum, searcher) != null) {
+				Logger.getGlobal()
+						.log(Level.INFO,
+								"Detected cycle in network graph from duplicate search request");
+				requestSearched(sender, searcher, seqNum);
+				notifySearchCompleted(sender, searcher, seqNum);
 				return; // We're already doing this search
 			}
 
@@ -475,11 +480,10 @@ public class P2PMediator implements IP2PMediator {
 		}
 	}
 
-	@Override
-	public void requestSearched(IHost sender, IHost searcher, int seqNum)
+	private void notifySearchCompleted(IHost sendTo, IHost searcher, int seqNum)
 			throws P2PException {
 		IPacket searchComplete = new Packet(IProtocol.PROTOCOL,
-				IProtocol.SEARCHED, sender.toString());
+				IProtocol.SEARCHED, sendTo.toString());
 		searchComplete.setHeader(IProtocol.HOST,
 				this.localhost.getHostAddress());
 		searchComplete.setHeader(IProtocol.PORT, this.localhost.getPort() + "");
@@ -489,18 +493,35 @@ public class P2PMediator implements IP2PMediator {
 				+ "");
 		searchComplete.setHeader(IProtocol.SEQ_NUM, seqNum + "");
 
-		IStreamMonitor monitor = hostToInStreamMonitor.get(sender);
+		IStreamMonitor monitor = hostToInStreamMonitor.get(sendTo);
+
+		searchComplete.toStream(monitor.getOutputStream());
+	}
+
+	@Override
+	public void requestSearched(IHost sender, IHost searcher, int seqNum)
+			throws P2PException {
 
 		FileSearch activeSearch = getActiveSearch(seqNum, searcher);
 
-		if (activeSearch != null) {
-			synchronized (activeSearch) {
-				activeSearch.RepliedCount++;
-			}
+		if (activeSearch == null) {
+			// Couldn't find a related search in progress
+			Logger.getGlobal()
+					.log(Level.INFO,
+							"Ignoring requestSearched - couldn't find a corresponding active search");
+			return;
+		}
+
+		IHost nextHop = activeSearch.LastHopSender;
+
+		IStreamMonitor monitor = hostToInStreamMonitor.get(nextHop);
+
+		synchronized (activeSearch) {
+			activeSearch.RepliedCount++;
 		}
 
 		boolean searchFinished = activeSearch == null
-				|| activeSearch.RepliedCount == activeSearch.ForwardedCount;
+				|| activeSearch.RepliedCount >= activeSearch.ForwardedCount;
 		boolean amSearcher = activeSearch == null
 				|| activeSearch.Searcher == getLocalHost();
 
@@ -518,7 +539,7 @@ public class P2PMediator implements IP2PMediator {
 		}
 
 		if (searchFinished && monitor != null && !amSearcher) {
-			searchComplete.toStream(monitor.getOutputStream());
+			notifySearchCompleted(nextHop, searcher, seqNum);
 		}
 	}
 

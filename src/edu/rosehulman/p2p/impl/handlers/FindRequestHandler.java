@@ -4,6 +4,7 @@ import java.io.InputStream;
 
 import edu.rosehulman.p2p.impl.Host;
 import edu.rosehulman.p2p.protocol.AbstractHandler;
+import edu.rosehulman.p2p.protocol.FileSearch;
 import edu.rosehulman.p2p.protocol.IHost;
 import edu.rosehulman.p2p.protocol.IP2PMediator;
 import edu.rosehulman.p2p.protocol.IPacket;
@@ -34,6 +35,13 @@ public class FindRequestHandler extends AbstractHandler implements
 
 			IHost searcher = new Host(searcherHost, searcherPort);
 			IHost sender = new Host(host, port);
+
+			FileSearch activeSearch = mediator
+					.getActiveSearch(seqNum, searcher);
+			if(activeSearch != null){
+				// already performing this search, just ignore a duplicate
+				return; // nothing left to do
+			}
 
 			String match = packet.getHeader(IProtocol.MATCHES);
 			String contains = packet.getHeader(IProtocol.CONTAINS);

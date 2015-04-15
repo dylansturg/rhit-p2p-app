@@ -41,6 +41,7 @@ import edu.rosehulman.p2p.protocol.IP2PMediator;
 import edu.rosehulman.p2p.protocol.IProtocol;
 
 public class P2PApp {
+
 	public static void main(String args[]) throws Exception {
 		// NOTE: Change me every time you run a new client locally
 		String rootDirectory = "third";
@@ -51,19 +52,29 @@ public class P2PApp {
 
 		// Configure the protocol by setting up handlers
 		IProtocol protocol = Protocol.getInstance();
-		protocol.setRequestHandler(IProtocol.GET, new GetRequestHandler(mediator));
-		protocol.setRequestHandler(IProtocol.PUT, new PutRequestHandler(mediator));
+		protocol.setRequestHandler(IProtocol.GET, new GetRequestHandler(
+				mediator));
+		protocol.setRequestHandler(IProtocol.PUT, new PutRequestHandler(
+				mediator));
 
-		protocol.setRequestHandler(IProtocol.LIST, new ListRequestHandler(mediator));
-		protocol.setRequestHandler(IProtocol.LISTING, new ListingRequestHandler(mediator));
-		protocol.setRequestHandler(IProtocol.FIND, new FindRequestHandler(mediator));
-		protocol.setRequestHandler(IProtocol.SEARCHED, new SearchedRequestHandler(mediator));
-		protocol.setRequestHandler(IProtocol.FOUND, new FoundRequestHandler(mediator));
-		
-		protocol.setResponseHandler(IProtocol.PUT, new PutResponseHandler(mediator));
-		protocol.setResponseHandler(IProtocol.FIND, new FindResponseHandler(mediator));
-		protocol.setResponseHandler(IProtocol.SEARCHED, new SearchedResponseHandler(mediator));
-		
+		protocol.setRequestHandler(IProtocol.LIST, new ListRequestHandler(
+				mediator));
+		protocol.setRequestHandler(IProtocol.LISTING,
+				new ListingRequestHandler(mediator));
+		protocol.setRequestHandler(IProtocol.FIND, new FindRequestHandler(
+				mediator));
+		protocol.setRequestHandler(IProtocol.SEARCHED,
+				new SearchedRequestHandler(mediator));
+		protocol.setRequestHandler(IProtocol.FOUND, new FoundRequestHandler(
+				mediator));
+
+		protocol.setResponseHandler(IProtocol.PUT, new PutResponseHandler(
+				mediator));
+		protocol.setResponseHandler(IProtocol.FIND, new FindResponseHandler(
+				mediator));
+		protocol.setResponseHandler(IProtocol.SEARCHED,
+				new SearchedResponseHandler(mediator));
+
 		// Let's start a connection monitor that listens for incoming connection
 		// request
 		ConnectionMonitor connectionMonitor = new ConnectionMonitor(mediator);
