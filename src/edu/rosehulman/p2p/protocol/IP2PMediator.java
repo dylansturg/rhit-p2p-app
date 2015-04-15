@@ -31,7 +31,6 @@ import edu.rosehulman.p2p.impl.notification.IActivityListener;
 import edu.rosehulman.p2p.impl.notification.IConnectionListener;
 import edu.rosehulman.p2p.impl.notification.IDownloadListener;
 import edu.rosehulman.p2p.impl.notification.IFindListener;
-import edu.rosehulman.p2p.impl.notification.IFindProgressListener;
 import edu.rosehulman.p2p.impl.notification.IListingListener;
 import edu.rosehulman.p2p.impl.notification.IRequestLogListener;
 
@@ -75,9 +74,7 @@ public interface IP2PMediator {
 	public void addConnectionListener(IConnectionListener l);
 	public void addActivityListener(IActivityListener l);
 	public void addFindListener(IFindListener l);
-	public void addFindProgressListener(IFindProgressListener l);
 	
-	public void fireFoundProgress(int progress);
 	public void fireFoundFile(IHost host, List<String> fileNames);
 	public void fireDownloadComplete(IHost host, String file);
 	public void fireListingReceived(IHost host, List<String> listing);

@@ -42,7 +42,6 @@ import edu.rosehulman.p2p.impl.notification.IActivityListener;
 import edu.rosehulman.p2p.impl.notification.IConnectionListener;
 import edu.rosehulman.p2p.impl.notification.IDownloadListener;
 import edu.rosehulman.p2p.impl.notification.IFindListener;
-import edu.rosehulman.p2p.impl.notification.IFindProgressListener;
 import edu.rosehulman.p2p.impl.notification.IListingListener;
 import edu.rosehulman.p2p.impl.notification.IRequestLogListener;
 import edu.rosehulman.p2p.protocol.FileSearch;
@@ -68,7 +67,6 @@ public class P2PMediator implements IP2PMediator {
 	List<IConnectionListener> connectionListeners;
 	List<IActivityListener> activityListeners;
 	List<IFindListener> findListeners;
-	List<IFindProgressListener> findProgressListeners;
 
 	int sequence;
 
@@ -99,8 +97,6 @@ public class P2PMediator implements IP2PMediator {
 				.synchronizedList(new ArrayList<IActivityListener>());
 		this.findListeners = Collections
 				.synchronizedList(new ArrayList<IFindListener>());
-		this.findProgressListeners = Collections
-				.synchronizedList(new ArrayList<IFindProgressListener>());
 
 		this.sequence = 0;
 	}
@@ -436,8 +432,6 @@ public class P2PMediator implements IP2PMediator {
 				Logger.getGlobal()
 						.log(Level.INFO,
 								"Detected cycle in network graph from duplicate search request");
-				requestSearched(sender, searcher, seqNum);
-				notifySearchCompleted(sender, searcher, seqNum);
 				return; // We're already doing this search
 			}
 
@@ -479,24 +473,6 @@ public class P2PMediator implements IP2PMediator {
 		}
 	}
 
-	private void notifySearchCompleted(IHost sendTo, IHost searcher, int seqNum)
-			throws P2PException {
-		IPacket searchComplete = new Packet(IProtocol.PROTOCOL,
-				IProtocol.SEARCHED, sendTo.toString());
-		searchComplete.setHeader(IProtocol.HOST,
-				this.localhost.getHostAddress());
-		searchComplete.setHeader(IProtocol.PORT, this.localhost.getPort() + "");
-		searchComplete.setHeader(IProtocol.SEARCHER_HOST,
-				searcher.getHostAddress());
-		searchComplete.setHeader(IProtocol.SEARCHER_PORT, searcher.getPort()
-				+ "");
-		searchComplete.setHeader(IProtocol.SEQ_NUM, seqNum + "");
-
-		IStreamMonitor monitor = hostToInStreamMonitor.get(sendTo);
-
-		searchComplete.toStream(monitor.getOutputStream());
-	}
-
 	@Override
 	public void requestSearched(IHost sender, IHost searcher, int seqNum)
 			throws P2PException {
@@ -511,34 +487,14 @@ public class P2PMediator implements IP2PMediator {
 			return;
 		}
 
-		IHost nextHop = activeSearch.LastHopSender;
-
-		IStreamMonitor monitor = hostToInStreamMonitor.get(nextHop);
-
 		synchronized (activeSearch) {
 			activeSearch.RepliedCount++;
 		}
 
-		boolean searchFinished = activeSearch == null
-				|| activeSearch.RepliedCount >= activeSearch.ForwardedCount;
-		boolean amSearcher = activeSearch == null
-				|| activeSearch.Searcher == getLocalHost();
-
-		if (amSearcher) {
-			if (activeSearch != null && activeSearch.ForwardedCount > 0) {
-				fireFoundProgress((int) Math
-						.round((activeSearch.RepliedCount / activeSearch.ForwardedCount) * 100));
-			} else {
-				fireFoundProgress(PROGRESS_COMPLETE);
-			}
-		}
+		boolean searchFinished = activeSearch.RepliedCount >= activeSearch.ForwardedCount;
 
 		if (searchFinished) {
 			completeSearch(seqNum, searcher);
-		}
-
-		if (searchFinished && monitor != null && !amSearcher) {
-			notifySearchCompleted(nextHop, searcher, seqNum);
 		}
 	}
 
@@ -695,20 +651,6 @@ public class P2PMediator implements IP2PMediator {
 		synchronized (findListeners) {
 			for (IFindListener listener : findListeners) {
 				listener.filesFound(host, fileNames);
-			}
-		}
-	}
-
-	@Override
-	public void addFindProgressListener(IFindProgressListener l) {
-		this.findProgressListeners.add(l);
-	}
-
-	@Override
-	public void fireFoundProgress(int progress) {
-		synchronized (findProgressListeners) {
-			for (IFindProgressListener listener : findProgressListeners) {
-				listener.findProgressChanged(progress);
 			}
 		}
 	}

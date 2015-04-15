@@ -61,7 +61,6 @@ import edu.rosehulman.p2p.impl.notification.IActivityListener;
 import edu.rosehulman.p2p.impl.notification.IConnectionListener;
 import edu.rosehulman.p2p.impl.notification.IDownloadListener;
 import edu.rosehulman.p2p.impl.notification.IFindListener;
-import edu.rosehulman.p2p.impl.notification.IFindProgressListener;
 import edu.rosehulman.p2p.impl.notification.IListingListener;
 import edu.rosehulman.p2p.impl.notification.IRequestLogListener;
 import edu.rosehulman.p2p.protocol.IHost;
@@ -75,8 +74,7 @@ import edu.rosehulman.p2p.protocol.P2PException;
  *
  */
 public class P2PGUI implements IActivityListener, IConnectionListener,
-		IDownloadListener, IListingListener, IRequestLogListener,
-		IFindListener, IFindProgressListener {
+		IDownloadListener, IListingListener, IRequestLogListener, IFindListener {
 	private static final int NETWORK_DEPTH = 2;
 
 	JFrame frame;
@@ -112,7 +110,6 @@ public class P2PGUI implements IActivityListener, IConnectionListener,
 	DefaultListModel<String> searchResultListModel;
 	JScrollPane searchResultScrollPane;
 	JButton downloadAfterSearch;
-	JProgressBar searchProgressBar;
 	JCheckBox searchExactMatch;
 
 	JPanel networkMapPanel;
@@ -369,7 +366,6 @@ public class P2PGUI implements IActivityListener, IConnectionListener,
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				searchResultListModel.clear();
-				searchProgressBar.setValue(0);
 
 				String searchTerm = searchTermField.getText();
 				try {
@@ -381,7 +377,7 @@ public class P2PGUI implements IActivityListener, IConnectionListener,
 			}
 		});
 
-		this.searchExactMatch = new JCheckBox("Exact Match: ");
+		this.searchExactMatch = new JCheckBox("Exact Match");
 		this.searchExactMatch.setSelected(true);
 
 		top.add(this.searchTermField);
@@ -397,7 +393,7 @@ public class P2PGUI implements IActivityListener, IConnectionListener,
 		this.downloadAfterSearch.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				if(!SwingUtilities.isEventDispatchThread()){
+				if (!SwingUtilities.isEventDispatchThread()) {
 					int x = 7;
 					x++;
 				}
@@ -437,9 +433,6 @@ public class P2PGUI implements IActivityListener, IConnectionListener,
 			}
 		});
 
-		this.searchProgressBar = new JProgressBar(0, 100);
-		this.searchProgressBar.setValue(0);
-
 		JPanel bottom = new JPanel();
 
 		bottom.setLayout(new GridBagLayout());
@@ -448,7 +441,6 @@ public class P2PGUI implements IActivityListener, IConnectionListener,
 		cons.weightx = 1;
 		cons.gridx = 0;
 
-		bottom.add(this.searchProgressBar, cons);
 		bottom.add(this.downloadAfterSearch, cons);
 
 		this.searchFilePanel.add(top, BorderLayout.NORTH);
@@ -536,13 +528,5 @@ public class P2PGUI implements IActivityListener, IConnectionListener,
 				}
 			}
 		});
-	}
-
-	@Override
-	public void findProgressChanged(final int progressPercent) {
-		this.postStatus("FIND PROGRESS: " + progressPercent + "%");
-
-		searchProgressBar.setValue(progressPercent);
-		searchProgressBar.repaint();
 	}
 }
