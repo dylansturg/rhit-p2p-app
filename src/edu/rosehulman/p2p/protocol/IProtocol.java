@@ -54,7 +54,6 @@ public interface IProtocol {
 
 	public static final String FIND = "FIND";
 	public static final String FOUND = "FOUND";
-	public static final String SEARCHED = "SEARCHED";
 
 	public static final String HOST = "Host";
 	public static final String PORT = "Port";

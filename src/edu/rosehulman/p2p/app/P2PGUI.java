@@ -77,7 +77,7 @@ import edu.rosehulman.p2p.protocol.P2PException;
 public class P2PGUI implements IActivityListener, IConnectionListener,
 		IDownloadListener, IListingListener, IRequestLogListener,
 		IFindListener, IFindProgressListener {
-	private static final int NETWORK_DEPTH = 3;
+	private static final int NETWORK_DEPTH = 2;
 
 	JFrame frame;
 	JPanel contentPane;
@@ -397,6 +397,10 @@ public class P2PGUI implements IActivityListener, IConnectionListener,
 		this.downloadAfterSearch.addActionListener(new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
+				if(!SwingUtilities.isEventDispatchThread()){
+					int x = 7;
+					x++;
+				}
 				String selectedFile = searchResultList.getSelectedValue();
 
 				if (selectedFile == null || selectedFile.isEmpty()) {
@@ -454,22 +458,34 @@ public class P2PGUI implements IActivityListener, IConnectionListener,
 	}
 
 	@Override
-	public void requestLogChanged(Collection<IPacket> packets) {
-		this.requestLogListModel.clear();
-		int i = 0;
-		for (IPacket p : packets) {
-			this.requestLogListModel.addElement(++i + " : " + p.getCommand()
-					+ " => " + p.getObject());
-		}
+	public void requestLogChanged(final Collection<IPacket> packets) {
+		SwingUtilities.invokeLater(new Runnable() {
+
+			@Override
+			public void run() {
+				requestLogListModel.clear();
+				int i = 0;
+				for (IPacket p : packets) {
+					requestLogListModel.addElement(++i + " : " + p.getCommand()
+							+ " => " + p.getObject());
+				}
+			}
+		});
 	}
 
 	@Override
-	public void listingReceived(IHost host, List<String> listing) {
+	public void listingReceived(IHost host, final List<String> listing) {
 		this.postStatus("File listing received from " + host + "!");
-		this.fileListModel.clear();
-		for (String f : listing) {
-			this.fileListModel.addElement(f);
-		}
+		SwingUtilities.invokeLater(new Runnable() {
+
+			@Override
+			public void run() {
+				fileListModel.clear();
+				for (String f : listing) {
+					fileListModel.addElement(f);
+				}
+			}
+		});
 	}
 
 	@Override
@@ -478,8 +494,14 @@ public class P2PGUI implements IActivityListener, IConnectionListener,
 	}
 
 	@Override
-	public void connectionEstablished(IHost host) {
-		this.peerListModel.addElement(host);
+	public void connectionEstablished(final IHost host) {
+		SwingUtilities.invokeLater(new Runnable() {
+
+			@Override
+			public void run() {
+				peerListModel.addElement(host);
+			}
+		});
 	}
 
 	@Override
@@ -504,7 +526,7 @@ public class P2PGUI implements IActivityListener, IConnectionListener,
 				+ host.getHostAddress());
 		this.postStatus("Files: " + fileNames);
 
-		EventQueue.invokeLater(new Runnable() {
+		SwingUtilities.invokeLater(new Runnable() {
 			@Override
 			public void run() {
 				for (String fName : fileNames) {

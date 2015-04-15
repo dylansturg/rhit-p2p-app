@@ -27,7 +27,6 @@ package edu.rosehulman.p2p.impl;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;

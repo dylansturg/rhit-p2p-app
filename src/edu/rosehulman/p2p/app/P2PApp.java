@@ -44,8 +44,8 @@ public class P2PApp {
 
 	public static void main(String args[]) throws Exception {
 		// NOTE: Change me every time you run a new client locally
-		String rootDirectory = "third";
-		int port = 9003;
+		String rootDirectory = "first";
+		int port = 9005;
 
 		// Configure the main worker that mediates between peers
 		IP2PMediator mediator = new P2PMediator(port, rootDirectory);
